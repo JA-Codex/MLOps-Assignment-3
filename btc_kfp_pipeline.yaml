@@ -1,0 +1,141 @@
+# PIPELINE DEFINITION
+# Name: btc-forecast-pipeline
+# Description: Daily BTC 7-day forecaster
+# Inputs:
+#    max_mape: float [Default: 15.0]
+components:
+  comp-features:
+    executorLabel: exec-features
+    inputDefinitions:
+      artifacts:
+        raw_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        clean_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        feature_table:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-ingest:
+    executorLabel: exec-ingest
+    outputDefinitions:
+      artifacts:
+        raw_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-train:
+    executorLabel: exec-train
+    inputDefinitions:
+      artifacts:
+        clean_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        max_mape:
+          parameterType: NUMBER_DOUBLE
+    outputDefinitions:
+      artifacts:
+        model_dir:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-features:
+      container:
+        args:
+        - --inp
+        - '{{$.inputs.artifacts[''raw_data''].path}}'
+        - --out
+        - '{{$.outputs.artifacts[''clean_data''].path}}'
+        - --features-out
+        - '{{$.outputs.artifacts[''feature_table''].path}}'
+        command:
+        - python
+        - -m
+        - src.preprocess
+        image: docker.io/Codexja/btc-forecast:latest
+    exec-ingest:
+      container:
+        args:
+        - --out
+        - '{{$.outputs.artifacts[''raw_data''].path}}'
+        - --full
+        command:
+        - python
+        - -m
+        - src.etl_fetch
+        image: docker.io/Codexja/btc-forecast:latest
+    exec-train:
+      container:
+        args:
+        - --data
+        - '{{$.inputs.artifacts[''clean_data''].path}}'
+        - --model-dir
+        - '{{$.outputs.artifacts[''model_dir''].path}}'
+        - --max-mape
+        - '{{$.inputs.parameters[''max_mape'']}}'
+        command:
+        - python
+        - -m
+        - src.train_forecast
+        image: docker.io/Codexja/btc-forecast:latest
+pipelineInfo:
+  description: Daily BTC 7-day forecaster
+  name: btc-forecast-pipeline
+root:
+  dag:
+    tasks:
+      features:
+        cachingOptions: {}
+        componentRef:
+          name: comp-features
+        dependentTasks:
+        - ingest
+        inputs:
+          artifacts:
+            raw_data:
+              taskOutputArtifact:
+                outputArtifactKey: raw_data
+                producerTask: ingest
+        taskInfo:
+          name: features
+      ingest:
+        cachingOptions: {}
+        componentRef:
+          name: comp-ingest
+        taskInfo:
+          name: ingest
+      train:
+        cachingOptions: {}
+        componentRef:
+          name: comp-train
+        dependentTasks:
+        - features
+        inputs:
+          artifacts:
+            clean_data:
+              taskOutputArtifact:
+                outputArtifactKey: clean_data
+                producerTask: features
+          parameters:
+            max_mape:
+              componentInputParameter: max_mape
+        taskInfo:
+          name: train
+  inputDefinitions:
+    parameters:
+      max_mape:
+        defaultValue: 15.0
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.18.1
