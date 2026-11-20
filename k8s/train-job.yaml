@@ -1,0 +1,31 @@
+# Bootstrap / manual retrain: fetch -> preprocess -> train, writing into the shared PVC.
+# Re-run with:  kubectl delete job btc-train --ignore-not-found && kubectl apply -f k8s/train-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: btc-train
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000}
+      containers:
+        - name: train
+          image: DOCKERHUB_USER/btc-forecast:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - python -m src.etl_fetch && python -m src.preprocess && python -m src.train_forecast
+          env:
+            - {name: DATA_DIR, value: /app/models/data}   # raw data persists on the PVC too
+          envFrom:
+            - configMapRef: {name: btc-forecast-config}
+          resources:
+            requests: {cpu: 200m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          volumeMounts:
+            - {name: models, mountPath: /app/models}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: btc-models-pvc}

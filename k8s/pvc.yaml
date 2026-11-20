@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: btc-models-pvc
+  labels: {app: btc-forecast}
+spec:
+  accessModes: [ReadWriteOnce]   # all replicas share it on a single-node Minikube/Kind
+  resources:
+    requests:
+      storage: 1Gi

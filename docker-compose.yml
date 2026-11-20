@@ -1,0 +1,83 @@
+# Local integration stack: Flask API + Airflow (LocalExecutor) + Postgres.
+x-airflow: &airflow
+  build: ./airflow
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+    PROJECT_ROOT: /opt/airflow/project
+    DATA_DIR: /opt/airflow/data
+    MODEL_DIR: /opt/airflow/models
+    API_RELOAD_URL: http://api:5000/reload
+    RELOAD_TOKEN: dev-reload-token
+    MAX_MAPE: "15"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./src:/opt/airflow/project/src
+    - airflow-data:/opt/airflow/data
+    - models:/opt/airflow/models
+  depends_on:
+    postgres:
+      condition: service_healthy
+    airflow-init:
+      condition: service_completed_successfully
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: btc-forecast:local
+    ports: ["5000:5000"]
+    environment:
+      MODEL_STAGE: staging
+      LOG_LEVEL: INFO
+      RELOAD_TOKEN: dev-reload-token
+    volumes:
+      - models:/app/models:ro
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 10
+
+  volume-perms:
+    image: busybox
+    user: "0:0"
+    command: sh -c "chown -R 50000:0 /data /models && chmod -R 775 /data /models"
+    volumes:
+      - airflow-data:/data
+      - models:/models
+
+  airflow-init:
+    build: ./airflow
+    environment: *airflow-env
+    depends_on:
+      postgres: {condition: service_healthy}
+      volume-perms: {condition: service_completed_successfully}
+    command: >
+      bash -c "airflow db migrate &&
+      airflow users create --username admin --password admin
+      --firstname Admin --lastname User --role Admin --email admin@example.com"
+
+  airflow-webserver:
+    <<: *airflow
+    command: webserver
+    ports: ["8080:8080"]
+
+  airflow-scheduler:
+    <<: *airflow
+    command: scheduler
+
+volumes:
+  pgdata:
+  airflow-data:
+  models:
