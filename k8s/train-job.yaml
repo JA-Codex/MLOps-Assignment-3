@@ -12,7 +12,7 @@ spec:
       securityContext: {runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000}
       containers:
         - name: train
-          image: DOCKERHUB_USER/btc-forecast:latest
+          image: Codexja/btc-forecast:latest
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c"]
           args:
