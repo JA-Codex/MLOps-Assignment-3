@@ -75,6 +75,16 @@ def train(data_path, model_dir, test_days=30, max_mape=15.0) -> dict:
         "last_origin": str(X_te.index[-1].date()),
     }
 
+    latest_origin = X_te.index[-1]
+    target_dates = close.loc[close.index > latest_origin].index[:HORIZON]
+    metrics["latest_7_days"] = {
+        "forecast_origin": str(latest_origin.date()),
+        "first_target_date": str(target_dates[0].date()),
+        "last_target_date": str(target_dates[-1].date()),
+        "days_evaluated": len(target_dates),
+        **_scores(actual[-1], predicted[-1]),
+    }
+
     registered = metrics["mape"] <= max_mape
     now = datetime.now(timezone.utc)
     version = now.strftime("%Y%m%d%H%M%S")

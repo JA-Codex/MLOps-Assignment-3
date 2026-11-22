@@ -62,7 +62,7 @@ deploymentSpec:
         - python
         - -m
         - src.preprocess
-        image: docker.io/Codexja/btc-forecast:latest
+        image: docker.io/codexja/btc-forecast:latest
     exec-ingest:
       container:
         args:
@@ -73,7 +73,7 @@ deploymentSpec:
         - python
         - -m
         - src.etl_fetch
-        image: docker.io/Codexja/btc-forecast:latest
+        image: docker.io/codexja/btc-forecast:latest
     exec-train:
       container:
         args:
@@ -87,7 +87,7 @@ deploymentSpec:
         - python
         - -m
         - src.train_forecast
-        image: docker.io/Codexja/btc-forecast:latest
+        image: docker.io/codexja/btc-forecast:latest
 pipelineInfo:
   description: Daily BTC 7-day forecaster
   name: btc-forecast-pipeline

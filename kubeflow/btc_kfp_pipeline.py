@@ -9,7 +9,7 @@ import os
 
 from kfp import compiler, dsl
 
-IMAGE = os.environ.get("BTC_IMAGE", "docker.io/DOCKERHUB_USER/btc-forecast:latest")
+IMAGE = os.environ.get("BTC_IMAGE", "docker.io/codexja/btc-forecast:latest")
 
 
 @dsl.container_component
